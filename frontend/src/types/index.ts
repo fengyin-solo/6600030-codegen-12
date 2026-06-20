@@ -37,3 +37,21 @@ export interface FEAResult {
   maxStress: number;
   reactionForces: { nodeId: number; fx: number; fy: number }[];
 }
+
+export interface ThresholdConfig {
+  stress: number;              // Pa
+  strain: number;              // dimensionless
+  force: number;               // N
+  stressEnabled: boolean;
+  strainEnabled: boolean;
+  forceEnabled: boolean;
+}
+
+export type ThresholdType = 'stress' | 'strain' | 'force';
+
+export interface ElementWarning {
+  elementId: number;
+  type: ThresholdType;
+  value: number;
+  threshold: number;
+}

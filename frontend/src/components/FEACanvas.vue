@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useFEAStore } from '../store/fea';
 
 const store = useFEAStore();
@@ -10,6 +10,24 @@ let offsetY = 50;
 let scale = 1;
 let isDragging = false;
 let lastMouse = { x: 0, y: 0 };
+let warningPulse = 0;
+let animationFrame: number | null = null;
+
+function startPulseAnimation() {
+  const tick = () => {
+    warningPulse = (Math.sin(Date.now() / 300) + 1) / 2;
+    draw();
+    animationFrame = requestAnimationFrame(tick);
+  };
+  animationFrame = requestAnimationFrame(tick);
+}
+
+function stopPulseAnimation() {
+  if (animationFrame !== null) {
+    cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+  }
+}
 
 function worldToScreen(x: number, y: number): [number, number] {
   return [x * scale + offsetX, y * scale + offsetY];
@@ -71,6 +89,19 @@ function draw() {
     const [x2, y2] = toScreen(n2.x, n2.y);
     const color = store.elementColors.get(el.id) || '#6b7280';
     const isSelected = store.selectedElement === el.id;
+    const hasWarning = store.warningElementIds.has(el.id);
+
+    if (hasWarning) {
+      const pulseAlpha = 0.4 + warningPulse * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = `rgba(239, 68, 68, ${pulseAlpha})`;
+      ctx.lineWidth = 8;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+    }
 
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -78,6 +109,17 @@ function draw() {
     ctx.strokeStyle = color;
     ctx.lineWidth = isSelected ? 4 : 2.5;
     ctx.stroke();
+
+    if (hasWarning) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.3 + warningPulse * 0.4})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([6, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     if (isSelected) {
       ctx.strokeStyle = '#ffffff';
@@ -332,6 +374,13 @@ function handleClick(e: MouseEvent) {
 
 onMounted(() => {
   nextTick(draw);
+  if (store.hasWarnings) {
+    startPulseAnimation();
+  }
+});
+
+onUnmounted(() => {
+  stopPulseAnimation();
 });
 
 watch(
@@ -343,9 +392,22 @@ watch(
     store.selectedElement,
     store.heatmapMode,
     store.elementColors,
+    store.thresholds,
   ],
   () => nextTick(draw),
   { deep: true }
+);
+
+watch(
+  () => store.hasWarnings,
+  (hasWarn) => {
+    if (hasWarn && animationFrame === null) {
+      startPulseAnimation();
+    } else if (!hasWarn && animationFrame !== null) {
+      stopPulseAnimation();
+      draw();
+    }
+  }
 );
 </script>
 

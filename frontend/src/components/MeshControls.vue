@@ -123,5 +123,98 @@ const store = useFEAStore();
         </div>
       </div>
     </div>
+
+    <!-- Danger thresholds -->
+    <div class="border-t border-slate-700 pt-3">
+      <h4 class="text-xs font-bold text-slate-300 mb-2 flex items-center gap-1">
+        <span>⚠️</span>
+        <span>危险阈值告警</span>
+      </h4>
+
+      <!-- Stress threshold -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              :checked="store.thresholds.stressEnabled"
+              @change="store.toggleThresholdEnabled('stress')"
+              class="accent-red-500"
+            />
+            <span class="text-xs text-slate-300">应力上限</span>
+          </label>
+          <span class="text-[10px] text-slate-500">MPa</span>
+        </div>
+        <input
+          type="number"
+          step="10"
+          min="0"
+          :disabled="!store.thresholds.stressEnabled"
+          :value="(store.thresholds.stress / 1e6).toFixed(0)"
+          @input="store.setThreshold('stress', Number(($event.target as HTMLInputElement).value) * 1e6)"
+          class="w-full px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-red-400 font-mono focus:border-red-500 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+        />
+      </div>
+
+      <!-- Strain threshold -->
+      <div class="mb-3">
+        <div class="flex items-center justify-between mb-1">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              :checked="store.thresholds.strainEnabled"
+              @change="store.toggleThresholdEnabled('strain')"
+              class="accent-red-500"
+            />
+            <span class="text-xs text-slate-300">应变上限</span>
+          </label>
+          <span class="text-[10px] text-slate-500">%</span>
+        </div>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          :disabled="!store.thresholds.strainEnabled"
+          :value="(store.thresholds.strain * 100).toFixed(3)"
+          @input="store.setThreshold('strain', Number(($event.target as HTMLInputElement).value) / 100)"
+          class="w-full px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-red-400 font-mono focus:border-red-500 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+        />
+      </div>
+
+      <!-- Force threshold -->
+      <div class="mb-2">
+        <div class="flex items-center justify-between mb-1">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              :checked="store.thresholds.forceEnabled"
+              @change="store.toggleThresholdEnabled('force')"
+              class="accent-red-500"
+            />
+            <span class="text-xs text-slate-300">轴力上限</span>
+          </label>
+          <span class="text-[10px] text-slate-500">kN</span>
+        </div>
+        <input
+          type="number"
+          step="10"
+          min="0"
+          :disabled="!store.thresholds.forceEnabled"
+          :value="(store.thresholds.force / 1000).toFixed(0)"
+          @input="store.setThreshold('force', Number(($event.target as HTMLInputElement).value) * 1000)"
+          class="w-full px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-red-400 font-mono focus:border-red-500 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+        />
+      </div>
+
+      <!-- Warning summary -->
+      <div v-if="store.hasWarnings" class="mt-3 bg-red-950/40 border border-red-800/50 rounded p-2">
+        <div class="text-[11px] font-bold text-red-400 mb-1">
+          ⚠️ {{ store.elementWarnings.size }} 个单元超出阈值
+        </div>
+        <div class="text-[10px] text-red-300/80">
+          请检查高亮显示的危险单元
+        </div>
+      </div>
+    </div>
   </div>
 </template>

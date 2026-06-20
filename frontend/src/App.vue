@@ -41,6 +41,12 @@ onMounted(() => {
 
     <!-- Bottom status bar -->
     <footer class="bg-slate-900 border-t border-slate-800 px-6 py-2 flex items-center gap-6 text-xs text-slate-400">
+      <template v-if="store.hasWarnings">
+        <span class="bg-red-950/60 border border-red-800 text-red-400 px-2 py-0.5 rounded font-bold animate-pulse flex items-center gap-1">
+          ⚠️
+          <span>{{ store.elementWarnings.size }} 个单元超出危险阈值</span>
+        </span>
+      </template>
       <span>
         最大应力:
         <span class="text-red-400 font-bold">

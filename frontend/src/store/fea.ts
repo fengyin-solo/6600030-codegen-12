@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import type { FEAModel, FEAResult } from '../types';
+import type { FEAModel, FEAResult, ThresholdConfig, ElementWarning, ThresholdType } from '../types';
 import {
   solve as feaSolve,
   presetCantileverBeam,
@@ -17,6 +17,15 @@ export const useFEAStore = defineStore('fea', () => {
   const deformationScale = ref(10);
   const selectedElement = ref<number | null>(null);
   const heatmapMode = ref<'stress' | 'strain' | 'force'>('stress');
+
+  const thresholds = ref<ThresholdConfig>({
+    stress: 250e6,
+    strain: 0.002,
+    force: 100000,
+    stressEnabled: false,
+    strainEnabled: false,
+    forceEnabled: false,
+  });
 
   // ─── Actions ──────────────────────────────────────────────────────────────
   function loadPreset(name: string) {
@@ -61,6 +70,19 @@ export const useFEAStore = defineStore('fea', () => {
   function toggleFixed(nodeId: number) {
     const node = model.value.nodes.find((n) => n.id === nodeId);
     if (node) node.fixed = !node.fixed;
+  }
+
+  function setThreshold(type: ThresholdType, value: number) {
+    thresholds.value[type] = value;
+  }
+
+  function toggleThresholdEnabled(type: ThresholdType) {
+    const key = `${type}Enabled` as keyof ThresholdConfig;
+    thresholds.value[key] = !thresholds.value[key] as any;
+  }
+
+  function setThresholds(config: Partial<ThresholdConfig>) {
+    Object.assign(thresholds.value, config);
   }
 
   // ─── Computed ─────────────────────────────────────────────────────────────
@@ -110,6 +132,65 @@ export const useFEAStore = defineStore('fea', () => {
     return colors;
   });
 
+  const elementWarnings = computed<Map<number, ElementWarning[]>>(() => {
+    const warnings = new Map<number, ElementWarning[]>();
+    if (!result.value) return warnings;
+
+    for (let i = 0; i < model.value.elements.length; i++) {
+      const el = model.value.elements[i];
+      const elWarnings: ElementWarning[] = [];
+
+      if (thresholds.value.stressEnabled) {
+        const stressVal = Math.abs(result.value.stresses[i]);
+        if (stressVal > thresholds.value.stress) {
+          elWarnings.push({
+            elementId: el.id,
+            type: 'stress',
+            value: stressVal,
+            threshold: thresholds.value.stress,
+          });
+        }
+      }
+
+      if (thresholds.value.strainEnabled) {
+        const strainVal = Math.abs(result.value.strains[i]);
+        if (strainVal > thresholds.value.strain) {
+          elWarnings.push({
+            elementId: el.id,
+            type: 'strain',
+            value: strainVal,
+            threshold: thresholds.value.strain,
+          });
+        }
+      }
+
+      if (thresholds.value.forceEnabled) {
+        const forceVal = Math.abs(el.force);
+        if (forceVal > thresholds.value.force) {
+          elWarnings.push({
+            elementId: el.id,
+            type: 'force',
+            value: forceVal,
+            threshold: thresholds.value.force,
+          });
+        }
+      }
+
+      if (elWarnings.length > 0) {
+        warnings.set(el.id, elWarnings);
+      }
+    }
+    return warnings;
+  });
+
+  const hasWarnings = computed(() => {
+    return elementWarnings.value.size > 0;
+  });
+
+  const warningElementIds = computed(() => {
+    return new Set(elementWarnings.value.keys());
+  });
+
   return {
     model,
     result,
@@ -118,9 +199,13 @@ export const useFEAStore = defineStore('fea', () => {
     deformationScale,
     selectedElement,
     heatmapMode,
+    thresholds,
     maxStress,
     maxDisplacement,
     elementColors,
+    elementWarnings,
+    hasWarnings,
+    warningElementIds,
     loadPreset,
     solve,
     toggleDeformed,
@@ -128,5 +213,8 @@ export const useFEAStore = defineStore('fea', () => {
     setHeatmapMode,
     addLoad,
     toggleFixed,
+    setThreshold,
+    toggleThresholdEnabled,
+    setThresholds,
   };
 });
