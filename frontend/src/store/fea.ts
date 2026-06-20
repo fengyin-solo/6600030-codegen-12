@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { FEAModel, FEAResult, ThresholdConfig, ElementWarning, ThresholdType } from '../types';
 import {
   solve as feaSolve,
@@ -8,6 +8,45 @@ import {
   presetSimpleFrame,
   jetColormap,
 } from '../utils/fea-solver';
+
+const THRESHOLD_STORAGE_KEY = 'fea-threshold-config';
+
+const defaultThresholds: ThresholdConfig = {
+  stress: 250e6,
+  strain: 0.002,
+  force: 100000,
+  stressEnabled: false,
+  strainEnabled: false,
+  forceEnabled: false,
+};
+
+function loadThresholdsFromStorage(): ThresholdConfig {
+  if (typeof window === 'undefined') return { ...defaultThresholds };
+  try {
+    const raw = window.localStorage.getItem(THRESHOLD_STORAGE_KEY);
+    if (!raw) return { ...defaultThresholds };
+    const parsed = JSON.parse(raw);
+    return {
+      stress: typeof parsed.stress === 'number' ? parsed.stress : defaultThresholds.stress,
+      strain: typeof parsed.strain === 'number' ? parsed.strain : defaultThresholds.strain,
+      force: typeof parsed.force === 'number' ? parsed.force : defaultThresholds.force,
+      stressEnabled: typeof parsed.stressEnabled === 'boolean' ? parsed.stressEnabled : defaultThresholds.stressEnabled,
+      strainEnabled: typeof parsed.strainEnabled === 'boolean' ? parsed.strainEnabled : defaultThresholds.strainEnabled,
+      forceEnabled: typeof parsed.forceEnabled === 'boolean' ? parsed.forceEnabled : defaultThresholds.forceEnabled,
+    };
+  } catch {
+    return { ...defaultThresholds };
+  }
+}
+
+function saveThresholdsToStorage(config: ThresholdConfig) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(THRESHOLD_STORAGE_KEY, JSON.stringify(config));
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export const useFEAStore = defineStore('fea', () => {
   const model = ref<FEAModel>({ nodes: [], elements: [], loads: [] });
@@ -18,14 +57,13 @@ export const useFEAStore = defineStore('fea', () => {
   const selectedElement = ref<number | null>(null);
   const heatmapMode = ref<'stress' | 'strain' | 'force'>('stress');
 
-  const thresholds = ref<ThresholdConfig>({
-    stress: 250e6,
-    strain: 0.002,
-    force: 100000,
-    stressEnabled: false,
-    strainEnabled: false,
-    forceEnabled: false,
-  });
+  const thresholds = ref<ThresholdConfig>(loadThresholdsFromStorage());
+
+  watch(
+    thresholds,
+    (val) => saveThresholdsToStorage(val),
+    { deep: true }
+  );
 
   // ─── Actions ──────────────────────────────────────────────────────────────
   function loadPreset(name: string) {
